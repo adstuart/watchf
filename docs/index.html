@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchfinder Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 2.5em;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        .stat {
+            background: #f7fafc;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-label {
+            color: #718096;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            color: #2d3748;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        
+        .message {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .message p {
+            color: #4a5568;
+            font-size: 1.2em;
+            line-height: 1.6;
+        }
+        
+        .emoji {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⌚ Watchfinder Tracker</h1>
+            <p>Tracking new arrivals from <a href="https://www.watchfinder.co.uk/new-arrivals" target="_blank" style="color: #667eea;">Watchfinder.co.uk</a></p>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value">Not Started</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Total Watches Tracked</div>
+                    <div class="stat-value">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="message">
+            <div class="emoji">🚀</div>
+            <p>
+                The tracker has been set up and is ready to start!<br><br>
+                Once the GitHub Actions workflow runs for the first time, 
+                this page will be updated with the latest watch arrivals.<br><br>
+                The workflow is scheduled to run every 5 minutes automatically.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

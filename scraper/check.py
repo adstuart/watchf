@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import random
+from html import escape as html_escape
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import requests
@@ -451,9 +452,15 @@ def generate_dashboard(known_watches: Dict, last_check: str) -> None:
 """
     
     for url, watch in recent_watches:
+        # HTML escape all user-provided content
+        safe_title = html_escape(watch.get('title', 'Unknown'))
+        safe_price = html_escape(watch.get('price', 'Price not available'))
+        safe_url = html_escape(url)
+        safe_image = html_escape(watch.get('image', ''))
+        
         image_html = ''
         if watch.get('image'):
-            image_html = f'<img src="{watch["image"]}" alt="{watch["title"]}" class="watch-image">'
+            image_html = f'<img src="{safe_image}" alt="{safe_title}" class="watch-image">'
         else:
             image_html = '<div class="watch-image no-image">⌚</div>'
         
@@ -462,16 +469,16 @@ def generate_dashboard(known_watches: Dict, last_check: str) -> None:
             first_seen = datetime.fromisoformat(watch.get('first_seen', ''))
             date_str = first_seen.strftime('%B %d, %Y at %H:%M')
         except (ValueError, TypeError):
-            date_str = watch.get('first_seen', 'Unknown')
+            date_str = html_escape(watch.get('first_seen', 'Unknown'))
         
         html += f"""
             <div class="watch-card">
                 {image_html}
                 <div class="watch-info">
-                    <div class="watch-title">{watch['title']}</div>
-                    <div class="watch-price">{watch['price']}</div>
+                    <div class="watch-title">{safe_title}</div>
+                    <div class="watch-price">{safe_price}</div>
                     <div class="watch-date">Added: {date_str}</div>
-                    <a href="{url}" target="_blank" class="watch-link">View on Watchfinder</a>
+                    <a href="{safe_url}" target="_blank" class="watch-link">View on Watchfinder</a>
                 </div>
             </div>
 """

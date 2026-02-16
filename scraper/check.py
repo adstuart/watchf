@@ -21,7 +21,7 @@ STATE_FILE = "data/known_watches.json"
 DASHBOARD_FILE = "docs/index.html"
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "")
 RETENTION_DAYS = 30
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
 
 def load_known_watches() -> Dict:
@@ -114,7 +114,7 @@ def parse_watches(html: str) -> List[Dict]:
         
         for product in products:
             try:
-                watch = parse_single_watch(product, soup)
+                watch = parse_single_watch(product)
                 if watch and watch.get('url'):
                     watches.append(watch)
             except Exception as e:
@@ -129,7 +129,7 @@ def parse_watches(html: str) -> List[Dict]:
     return watches
 
 
-def parse_single_watch(element, soup) -> Optional[Dict]:
+def parse_single_watch(element) -> Optional[Dict]:
     """Parse a single watch element"""
     try:
         # Get URL
@@ -461,7 +461,7 @@ def generate_dashboard(known_watches: Dict, last_check: str) -> None:
         try:
             first_seen = datetime.fromisoformat(watch.get('first_seen', ''))
             date_str = first_seen.strftime('%B %d, %Y at %H:%M')
-        except:
+        except (ValueError, TypeError):
             date_str = watch.get('first_seen', 'Unknown')
         
         html += f"""

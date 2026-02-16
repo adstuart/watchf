@@ -469,7 +469,8 @@ def generate_dashboard(known_watches: Dict, last_check: str) -> None:
             first_seen = datetime.fromisoformat(watch.get('first_seen', ''))
             date_str = first_seen.strftime('%B %d, %Y at %H:%M')
         except (ValueError, TypeError):
-            date_str = html_escape(watch.get('first_seen', 'Unknown'))
+            # Fallback for invalid dates - escape user input
+            date_str = html_escape(str(watch.get('first_seen', 'Unknown')))
         
         html += f"""
             <div class="watch-card">

@@ -63,23 +63,99 @@
             font-weight: bold;
         }
         
-        .message {
+        .watches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .watch-card {
             background: white;
             border-radius: 12px;
-            padding: 30px;
-            text-align: center;
+            overflow: hidden;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
         }
         
-        .message p {
-            color: #4a5568;
-            font-size: 1.2em;
-            line-height: 1.6;
+        .watch-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
         }
         
-        .emoji {
-            font-size: 4em;
-            margin-bottom: 20px;
+        .watch-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            background: #f7fafc;
+        }
+        
+        .watch-info {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .watch-title {
+            color: #2d3748;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        
+        .watch-price {
+            color: #667eea;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .watch-date {
+            color: #a0aec0;
+            font-size: 0.85em;
+            margin-bottom: 15px;
+        }
+        
+        .watch-link {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            text-align: center;
+            margin-top: auto;
+            transition: background 0.2s;
+        }
+        
+        .watch-link:hover {
+            background: #5568d3;
+        }
+        
+        .no-image {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 3em;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .stats {
+                gap: 15px;
+            }
+            
+            .watches-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -91,24 +167,22 @@
             
             <div class="stats">
                 <div class="stat">
-                    <div class="stat-label">Status</div>
-                    <div class="stat-value">Not Started</div>
+                    <div class="stat-label">Last Checked</div>
+                    <div class="stat-value">2026-02-16 20:58:40 UTC</div>
                 </div>
                 <div class="stat">
                     <div class="stat-label">Total Watches Tracked</div>
                     <div class="stat-value">0</div>
                 </div>
+                <div class="stat">
+                    <div class="stat-label">Recent Additions</div>
+                    <div class="stat-value">0</div>
+                </div>
             </div>
         </div>
         
-        <div class="message">
-            <div class="emoji">🚀</div>
-            <p>
-                The tracker has been set up and is ready to start!<br><br>
-                Once the GitHub Actions workflow runs for the first time, 
-                this page will be updated with the latest watch arrivals.<br><br>
-                The workflow is scheduled to run every 5 minutes automatically.
-            </p>
+        <div class="watches-grid">
+
         </div>
     </div>
 </body>

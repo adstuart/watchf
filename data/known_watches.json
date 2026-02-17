@@ -1,1 +1,37 @@
-{}
+{
+  "https://www.watchfinder.co.uk/watches/under/1000": {
+    "url": "https://www.watchfinder.co.uk/watches/under/1000",
+    "title": "Under \u00a31,000",
+    "price": "Under \u00a31,000",
+    "image": "",
+    "first_seen": "2026-02-17T19:51:53.317560"
+  },
+  "https://www.watchfinder.co.uk/watches/between/1000/and/5000": {
+    "url": "https://www.watchfinder.co.uk/watches/between/1000/and/5000",
+    "title": "\u00a31,000 to \u00a35,000",
+    "price": "\u00a31,000 to \u00a35,000",
+    "image": "",
+    "first_seen": "2026-02-17T19:51:53.317812"
+  },
+  "https://www.watchfinder.co.uk/watches/between/5000/and/10000": {
+    "url": "https://www.watchfinder.co.uk/watches/between/5000/and/10000",
+    "title": "\u00a35,000 to \u00a310,000",
+    "price": "\u00a35,000 to \u00a310,000",
+    "image": "",
+    "first_seen": "2026-02-17T19:51:53.318011"
+  },
+  "https://www.watchfinder.co.uk/watches/from/10000": {
+    "url": "https://www.watchfinder.co.uk/watches/from/10000",
+    "title": "\u00a310,000+",
+    "price": "\u00a310,000+",
+    "image": "",
+    "first_seen": "2026-02-17T19:51:53.318185"
+  },
+  "https://www.watchfinder.co.uk/Rolex/watches/all": {
+    "url": "https://www.watchfinder.co.uk/Rolex/watches/all",
+    "title": "Rolex Watches",
+    "price": "Price not available",
+    "image": "",
+    "first_seen": "2026-02-17T19:51:53.318308"
+  }
+}

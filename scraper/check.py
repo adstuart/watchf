@@ -86,11 +86,19 @@ def parse_watches(html: str) -> List[Dict]:
     try:
         soup = BeautifulSoup(html, 'lxml')
         
+        # Debug: Save HTML sample if DEBUG environment variable is set
+        if os.environ.get('DEBUG_SCRAPER'):
+            debug_dir = '/tmp/watchf_debug'
+            os.makedirs(debug_dir, exist_ok=True)
+            with open(f'{debug_dir}/page_sample.html', 'w', encoding='utf-8') as f:
+                f.write(html[:100000])
+            print(f"Debug: Saved HTML sample to {debug_dir}/page_sample.html")
+        
         # Watchfinder uses various selectors - try multiple patterns
         # Common patterns: product cards, watch tiles, etc.
         # We'll look for typical product listing patterns
         
-        # Try finding product cards/tiles
+        # Try finding product cards/tiles with expanded selectors
         product_selectors = [
             'div.product-card',
             'div.watch-card',
@@ -98,20 +106,42 @@ def parse_watches(html: str) -> List[Dict]:
             'div.product-item',
             'li.product',
             'div[data-product-id]',
+            'a.product-link',
+            'a.watch-link',
+            'div[class*="product"]',
+            'div[class*="watch"]',
+            'li[class*="product"]',
+            'article[class*="product"]',
             'a[href*="/watch/"]',
+            'a[href*="/watches/"]',
         ]
         
         products = []
         for selector in product_selectors:
-            products = soup.select(selector)
-            if products:
-                print(f"Found {len(products)} products using selector: {selector}")
-                break
+            try:
+                products = soup.select(selector)
+                if products:
+                    print(f"Found {len(products)} products using selector: {selector}")
+                    break
+            except Exception as e:
+                print(f"Error with selector '{selector}': {e}")
+                continue
         
         # If no products found with specific selectors, try finding all links to watch pages
         if not products:
-            products = soup.find_all('a', href=lambda h: h and '/watch/' in h)
+            products = soup.find_all('a', href=lambda h: h and ('/watch/' in h or '/watches/' in h))
             print(f"Found {len(products)} watch links")
+        
+        # If still no products, log more debug information
+        if not products:
+            print("Debug: No products found with any selector")
+            # Try to find any links on the page for debugging
+            all_links = soup.find_all('a', href=True)
+            print(f"Debug: Total links on page: {len(all_links)}")
+            if all_links:
+                # Sample first few links to understand page structure
+                sample_hrefs = [a.get('href', '') for a in all_links[:10]]
+                print(f"Debug: Sample links: {sample_hrefs}")
         
         for product in products:
             try:
@@ -138,7 +168,7 @@ def parse_single_watch(element) -> Optional[Dict]:
         if element.name == 'a':
             url = element.get('href')
         else:
-            link = element.find('a')
+            link = element.find('a', href=True)
             if link:
                 url = link.get('href')
         
@@ -150,6 +180,10 @@ def parse_single_watch(element) -> Optional[Dict]:
             url = f"https://www.watchfinder.co.uk{url}"
         elif not url.startswith('http'):
             url = f"https://www.watchfinder.co.uk/{url}"
+        
+        # Filter out non-watch URLs
+        if not ('/watch/' in url or '/watches/' in url):
+            return None
         
         # Get title/description
         title = None

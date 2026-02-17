@@ -1,0 +1,54 @@
+name: Debug Scraper
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run scraper with debug
+        env:
+          NTFY_TOPIC: debug-test
+          DEBUG_SCRAPER: "1"
+        run: |
+          mkdir -p /tmp/watchf_debug
+          python scraper/check.py || true
+      
+      - name: Show debug output
+        run: |
+          if [ -f /tmp/watchf_debug/page_sample.html ]; then
+            echo "HTML sample size: $(wc -c < /tmp/watchf_debug/page_sample.html)"
+            echo "First 2000 characters:"
+            head -c 2000 /tmp/watchf_debug/page_sample.html
+            echo ""
+            echo "Sample link tags:"
+            grep -oP '<a[^>]+href="[^"]*watch[^"]*"[^>]*>' /tmp/watchf_debug/page_sample.html | head -10
+          else
+            echo "No HTML sample found"
+          fi
+      
+      - name: Upload debug HTML
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug-html
+          path: /tmp/watchf_debug/
+          retention-days: 1

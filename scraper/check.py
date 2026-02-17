@@ -25,6 +25,12 @@ NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "")
 RETENTION_DAYS = 30
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
+# Scraper tuning constants
+LAZY_LOAD_WAIT_MS = 2000  # Wait time for lazy-loaded content
+MIN_PRODUCTS_THRESHOLD = 10  # Stop trying selectors after finding this many
+DEBUG_HTML_SAMPLE_SIZE = 100000  # Max chars to save in debug mode
+DEBUG_DIR = '/tmp/watchf_debug'  # Debug output directory
+
 
 def load_known_watches() -> Dict:
     """Load previously seen watches from state file"""
@@ -65,31 +71,33 @@ def fetch_new_arrivals() -> Optional[str]:
         
         print("Fetching page with Playwright...")
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                user_agent=USER_AGENT,
-                viewport={'width': 1920, 'height': 1080}
-            )
-            page = context.new_page()
-            
-            # Navigate to the page
+            browser = None
             try:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=USER_AGENT,
+                    viewport={'width': 1920, 'height': 1080}
+                )
+                page = context.new_page()
+                
+                # Navigate to the page
                 page.goto(WATCHFINDER_URL, wait_until='networkidle', timeout=30000)
                 
-                # Wait a bit more for any lazy-loaded content
-                page.wait_for_timeout(2000)
+                # Wait for lazy-loaded content
+                page.wait_for_timeout(LAZY_LOAD_WAIT_MS)
                 
                 # Get the fully rendered HTML
                 html = page.content()
                 
-                browser.close()
                 print(f"Page fetched successfully, HTML length: {len(html)}")
                 return html
                 
             except PlaywrightTimeoutError as e:
                 print(f"Timeout loading page: {e}", file=sys.stderr)
-                browser.close()
                 return None
+            finally:
+                if browser:
+                    browser.close()
                 
     except Exception as e:
         print(f"Error fetching page with Playwright: {e}", file=sys.stderr)
@@ -123,11 +131,10 @@ def parse_watches(html: str) -> List[Dict]:
         
         # Debug: Save HTML sample if DEBUG environment variable is set
         if os.environ.get('DEBUG_SCRAPER'):
-            debug_dir = '/tmp/watchf_debug'
-            os.makedirs(debug_dir, exist_ok=True)
-            with open(f'{debug_dir}/page_sample.html', 'w', encoding='utf-8') as f:
-                f.write(html[:100000])
-            print(f"Debug: Saved HTML sample to {debug_dir}/page_sample.html")
+            os.makedirs(DEBUG_DIR, exist_ok=True)
+            with open(f'{DEBUG_DIR}/page_sample.html', 'w', encoding='utf-8') as f:
+                f.write(html[:DEBUG_HTML_SAMPLE_SIZE])
+            print(f"Debug: Saved HTML sample to {DEBUG_DIR}/page_sample.html")
         
         # Watchfinder uses various selectors - try multiple patterns
         # Common patterns: product cards, watch tiles, etc.
@@ -187,7 +194,7 @@ def parse_watches(html: str) -> List[Dict]:
                             used_urls.add(url)
                     
                     # If we found enough products, we can stop trying more selectors
-                    if len(products) >= 10:
+                    if len(products) >= MIN_PRODUCTS_THRESHOLD:
                         break
             except Exception as e:
                 print(f"Error with selector '{selector}': {e}")

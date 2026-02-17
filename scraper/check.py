@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 
 # Configuration
@@ -57,26 +58,60 @@ def prune_old_watches(watches: Dict) -> Dict:
 
 
 def fetch_new_arrivals() -> Optional[str]:
-    """Fetch the new arrivals page HTML"""
+    """Fetch the new arrivals page HTML using Playwright for JavaScript rendering"""
     try:
         # Add random delay to be polite
         time.sleep(random.uniform(1, 3))
         
-        headers = {
-            'User-Agent': USER_AGENT,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        }
-        
-        response = requests.get(WATCHFINDER_URL, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        print(f"Error fetching page: {e}", file=sys.stderr)
-        return None
+        print("Fetching page with Playwright...")
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent=USER_AGENT,
+                viewport={'width': 1920, 'height': 1080}
+            )
+            page = context.new_page()
+            
+            # Navigate to the page
+            try:
+                page.goto(WATCHFINDER_URL, wait_until='networkidle', timeout=30000)
+                
+                # Wait a bit more for any lazy-loaded content
+                page.wait_for_timeout(2000)
+                
+                # Get the fully rendered HTML
+                html = page.content()
+                
+                browser.close()
+                print(f"Page fetched successfully, HTML length: {len(html)}")
+                return html
+                
+            except PlaywrightTimeoutError as e:
+                print(f"Timeout loading page: {e}", file=sys.stderr)
+                browser.close()
+                return None
+                
+    except Exception as e:
+        print(f"Error fetching page with Playwright: {e}", file=sys.stderr)
+        # Fallback to requests if Playwright fails
+        try:
+            print("Falling back to requests...")
+            headers = {
+                'User-Agent': USER_AGENT,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+            
+            response = requests.get(WATCHFINDER_URL, headers=headers, timeout=30)
+            response.raise_for_status()
+            print(f"Fallback successful, HTML length: {len(response.text)}")
+            return response.text
+        except requests.RequestException as e:
+            print(f"Error with fallback request: {e}", file=sys.stderr)
+            return None
 
 
 def parse_watches(html: str) -> List[Dict]:

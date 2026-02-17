@@ -164,15 +164,36 @@ def parse_watches(html: str) -> List[Dict]:
         ]
         
         products = []
+        used_urls = set()  # Track URLs to avoid duplicates
+        
         for selector in product_selectors:
             try:
-                products = soup.select(selector)
-                if products:
-                    print(f"Found {len(products)} products using selector: {selector}")
-                    break
+                matches = soup.select(selector)
+                if matches:
+                    print(f"Found {len(matches)} products using selector: {selector}")
+                    # Add only unique products (based on URL)
+                    for match in matches:
+                        # Get URL from match to check for duplicates
+                        url = None
+                        if match.name == 'a':
+                            url = match.get('href', '')
+                        else:
+                            link = match.find('a', href=True)
+                            if link:
+                                url = link.get('href', '')
+                        
+                        if url and url not in used_urls:
+                            products.append(match)
+                            used_urls.add(url)
+                    
+                    # If we found enough products, we can stop trying more selectors
+                    if len(products) >= 10:
+                        break
             except Exception as e:
                 print(f"Error with selector '{selector}': {e}")
                 continue
+        
+        print(f"Total unique products found: {len(products)}")
         
         # If no products found with specific selectors, try finding all links to watch pages
         if not products:

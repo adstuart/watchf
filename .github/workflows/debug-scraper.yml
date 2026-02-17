@@ -31,7 +31,10 @@ jobs:
           DEBUG_SCRAPER: "1"
         run: |
           mkdir -p /tmp/watchf_debug
-          python scraper/check.py || true
+          python scraper/check.py
+          exit_code=$?
+          echo "Scraper exit code: $exit_code"
+          exit 0  # Allow workflow to continue even if scraper fails
       
       - name: Show debug output
         run: |

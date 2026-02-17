@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import random
+import tempfile
 from html import escape as html_escape
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -27,9 +28,17 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 # Scraper tuning constants
 LAZY_LOAD_WAIT_MS = 2000  # Wait time for lazy-loaded content
-MIN_PRODUCTS_THRESHOLD = 10  # Stop trying selectors after finding this many
+MIN_PRODUCTS_THRESHOLD = 10  # Stop trying selectors after finding this many (performance optimization)
 DEBUG_HTML_SAMPLE_SIZE = 100000  # Max chars to save in debug mode
-DEBUG_DIR = '/tmp/watchf_debug'  # Debug output directory
+DEBUG_DIR = os.path.join(tempfile.gettempdir(), 'watchf_debug')  # Debug output directory
+
+# URL patterns for watch pages
+WATCH_URL_PATTERNS = ['/watch/', '/watches/']
+
+
+def is_watch_url(url: str) -> bool:
+    """Check if URL is a watch product page"""
+    return url and any(pattern in url for pattern in WATCH_URL_PATTERNS)
 
 
 def load_known_watches() -> Dict:
@@ -204,7 +213,7 @@ def parse_watches(html: str) -> List[Dict]:
         
         # If no products found with specific selectors, try finding all links to watch pages
         if not products:
-            products = soup.find_all('a', href=lambda h: h and ('/watch/' in h or '/watches/' in h))
+            products = soup.find_all('a', href=lambda h: is_watch_url(h))
             print(f"Found {len(products)} watch links")
         
         # If still no products, log more debug information
@@ -257,7 +266,7 @@ def parse_single_watch(element) -> Optional[Dict]:
             url = f"https://www.watchfinder.co.uk/{url}"
         
         # Filter out non-watch URLs
-        if not ('/watch/' in url or '/watches/' in url):
+        if not is_watch_url(url):
             return None
         
         # Get title/description
@@ -268,7 +277,7 @@ def parse_single_watch(element) -> Optional[Dict]:
             element.find('h3'),
             element.find('h4'),
             element.find(class_=lambda c: c and ('title' in c.lower() or 'name' in c.lower() or 'heading' in c.lower())),
-            element.find('a', href=lambda h: h and ('/watch/' in h or '/watches/' in h)),
+            element.find('a', href=lambda h: is_watch_url(h)),
             element.find('span', class_=lambda c: c and ('name' in c.lower() or 'title' in c.lower())),
         ]
         

@@ -9,11 +9,13 @@ import os
 import sys
 import time
 import random
+import tempfile
 from html import escape as html_escape
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 
 # Configuration
@@ -23,6 +25,20 @@ DASHBOARD_FILE = "docs/index.html"
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "")
 RETENTION_DAYS = 30
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+
+# Scraper tuning constants
+LAZY_LOAD_WAIT_MS = 2000  # Wait time for lazy-loaded content
+MIN_PRODUCTS_THRESHOLD = 10  # Stop trying selectors after finding this many (performance optimization)
+DEBUG_HTML_SAMPLE_SIZE = 100000  # Max chars to save in debug mode
+DEBUG_DIR = os.path.join(tempfile.gettempdir(), 'watchf_debug')  # Debug output directory
+
+# URL patterns for watch pages
+WATCH_URL_PATTERNS = ['/watch/', '/watches/']
+
+
+def is_watch_url(url: str) -> bool:
+    """Check if URL is a watch product page"""
+    return url and any(pattern in url for pattern in WATCH_URL_PATTERNS)
 
 
 def load_known_watches() -> Dict:
@@ -57,26 +73,62 @@ def prune_old_watches(watches: Dict) -> Dict:
 
 
 def fetch_new_arrivals() -> Optional[str]:
-    """Fetch the new arrivals page HTML"""
+    """Fetch the new arrivals page HTML using Playwright for JavaScript rendering"""
     try:
         # Add random delay to be polite
         time.sleep(random.uniform(1, 3))
         
-        headers = {
-            'User-Agent': USER_AGENT,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        }
-        
-        response = requests.get(WATCHFINDER_URL, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        print(f"Error fetching page: {e}", file=sys.stderr)
-        return None
+        print("Fetching page with Playwright...")
+        with sync_playwright() as p:
+            browser = None
+            try:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=USER_AGENT,
+                    viewport={'width': 1920, 'height': 1080}
+                )
+                page = context.new_page()
+                
+                # Navigate to the page
+                page.goto(WATCHFINDER_URL, wait_until='networkidle', timeout=30000)
+                
+                # Wait for lazy-loaded content
+                page.wait_for_timeout(LAZY_LOAD_WAIT_MS)
+                
+                # Get the fully rendered HTML
+                html = page.content()
+                
+                print(f"Page fetched successfully, HTML length: {len(html)}")
+                return html
+                
+            except PlaywrightTimeoutError as e:
+                print(f"Timeout loading page: {e}", file=sys.stderr)
+                return None
+            finally:
+                if browser:
+                    browser.close()
+                
+    except Exception as e:
+        print(f"Error fetching page with Playwright: {e}", file=sys.stderr)
+        # Fallback to requests if Playwright fails
+        try:
+            print("Falling back to requests...")
+            headers = {
+                'User-Agent': USER_AGENT,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+            
+            response = requests.get(WATCHFINDER_URL, headers=headers, timeout=30)
+            response.raise_for_status()
+            print(f"Fallback successful, HTML length: {len(response.text)}")
+            return response.text
+        except requests.RequestException as e:
+            print(f"Error with fallback request: {e}", file=sys.stderr)
+            return None
 
 
 def parse_watches(html: str) -> List[Dict]:
@@ -86,32 +138,94 @@ def parse_watches(html: str) -> List[Dict]:
     try:
         soup = BeautifulSoup(html, 'lxml')
         
+        # Debug: Save HTML sample if DEBUG environment variable is set
+        if os.environ.get('DEBUG_SCRAPER'):
+            os.makedirs(DEBUG_DIR, exist_ok=True)
+            with open(f'{DEBUG_DIR}/page_sample.html', 'w', encoding='utf-8') as f:
+                f.write(html[:DEBUG_HTML_SAMPLE_SIZE])
+            print(f"Debug: Saved HTML sample to {DEBUG_DIR}/page_sample.html")
+        
         # Watchfinder uses various selectors - try multiple patterns
         # Common patterns: product cards, watch tiles, etc.
         # We'll look for typical product listing patterns
         
-        # Try finding product cards/tiles
+        # Try finding product cards/tiles with expanded selectors
         product_selectors = [
+            # Specific class-based selectors
             'div.product-card',
             'div.watch-card',
             'article.product',
             'div.product-item',
             'li.product',
+            'div.watch-item',
+            'a.product-link',
+            'a.watch-link',
+            # Data attribute selectors
             'div[data-product-id]',
+            'div[data-watch-id]',
+            '[data-product]',
+            '[data-watch]',
+            # Partial class match selectors (more flexible)
+            'div[class*="product"]',
+            'div[class*="watch"]',
+            'div[class*="item"]',
+            'li[class*="product"]',
+            'li[class*="watch"]',
+            'article[class*="product"]',
+            'article[class*="watch"]',
+            # Link-based selectors (last resort before full scan)
             'a[href*="/watch/"]',
+            'a[href*="/watches/"]',
+            'a[href*="/product/"]',
         ]
         
         products = []
+        used_urls = set()  # Track URLs to avoid duplicates
+        
         for selector in product_selectors:
-            products = soup.select(selector)
-            if products:
-                print(f"Found {len(products)} products using selector: {selector}")
-                break
+            try:
+                matches = soup.select(selector)
+                if matches:
+                    print(f"Found {len(matches)} products using selector: {selector}")
+                    # Add only unique products (based on URL)
+                    for match in matches:
+                        # Get URL from match to check for duplicates
+                        url = None
+                        if match.name == 'a':
+                            url = match.get('href', '')
+                        else:
+                            link = match.find('a', href=True)
+                            if link:
+                                url = link.get('href', '')
+                        
+                        if url and url not in used_urls:
+                            products.append(match)
+                            used_urls.add(url)
+                    
+                    # If we found enough products, we can stop trying more selectors
+                    if len(products) >= MIN_PRODUCTS_THRESHOLD:
+                        break
+            except Exception as e:
+                print(f"Error with selector '{selector}': {e}")
+                continue
+        
+        print(f"Total unique products found: {len(products)}")
         
         # If no products found with specific selectors, try finding all links to watch pages
         if not products:
-            products = soup.find_all('a', href=lambda h: h and '/watch/' in h)
+            products = soup.find_all('a', href=lambda h: is_watch_url(h))
             print(f"Found {len(products)} watch links")
+        
+        # If still no products, log more debug information
+        if not products:
+            print("Debug: No products found with any selector")
+            # Try to find any links on the page for debugging
+            all_links = soup.find_all('a', href=True)
+            print(f"Debug: Total links on page: {len(all_links)}")
+            if all_links:
+                # Sample first few links to understand page structure
+                sample_hrefs = [a.get('href', '') for a in all_links[:10]]
+                print(f"Debug: Sample links: {sample_hrefs}")
         
         for product in products:
             try:
@@ -138,7 +252,7 @@ def parse_single_watch(element) -> Optional[Dict]:
         if element.name == 'a':
             url = element.get('href')
         else:
-            link = element.find('a')
+            link = element.find('a', href=True)
             if link:
                 url = link.get('href')
         
@@ -151,13 +265,20 @@ def parse_single_watch(element) -> Optional[Dict]:
         elif not url.startswith('http'):
             url = f"https://www.watchfinder.co.uk/{url}"
         
+        # Filter out non-watch URLs
+        if not is_watch_url(url):
+            return None
+        
         # Get title/description
         title = None
         title_selectors = [
+            element.find('h1'),
             element.find('h2'),
             element.find('h3'),
-            element.find(class_=lambda c: c and ('title' in c.lower() or 'name' in c.lower())),
-            element.find('a', href=lambda h: h and '/watch/' in h),
+            element.find('h4'),
+            element.find(class_=lambda c: c and ('title' in c.lower() or 'name' in c.lower() or 'heading' in c.lower())),
+            element.find('a', href=lambda h: is_watch_url(h)),
+            element.find('span', class_=lambda c: c and ('name' in c.lower() or 'title' in c.lower())),
         ]
         
         for title_elem in title_selectors:
@@ -170,6 +291,11 @@ def parse_single_watch(element) -> Optional[Dict]:
             # Try to get title from link text
             if element.name == 'a':
                 title = element.get_text(strip=True)
+            # Try alt text from image
+            elif not title:
+                img = element.find('img')
+                if img and img.get('alt'):
+                    title = img.get('alt').strip()
         
         # Get price
         price = None

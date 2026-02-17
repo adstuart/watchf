@@ -135,20 +135,32 @@ def parse_watches(html: str) -> List[Dict]:
         
         # Try finding product cards/tiles with expanded selectors
         product_selectors = [
+            # Specific class-based selectors
             'div.product-card',
             'div.watch-card',
             'article.product',
             'div.product-item',
             'li.product',
-            'div[data-product-id]',
+            'div.watch-item',
             'a.product-link',
             'a.watch-link',
+            # Data attribute selectors
+            'div[data-product-id]',
+            'div[data-watch-id]',
+            '[data-product]',
+            '[data-watch]',
+            # Partial class match selectors (more flexible)
             'div[class*="product"]',
             'div[class*="watch"]',
+            'div[class*="item"]',
             'li[class*="product"]',
+            'li[class*="watch"]',
             'article[class*="product"]',
+            'article[class*="watch"]',
+            # Link-based selectors (last resort before full scan)
             'a[href*="/watch/"]',
             'a[href*="/watches/"]',
+            'a[href*="/product/"]',
         ]
         
         products = []
@@ -223,10 +235,13 @@ def parse_single_watch(element) -> Optional[Dict]:
         # Get title/description
         title = None
         title_selectors = [
+            element.find('h1'),
             element.find('h2'),
             element.find('h3'),
-            element.find(class_=lambda c: c and ('title' in c.lower() or 'name' in c.lower())),
-            element.find('a', href=lambda h: h and '/watch/' in h),
+            element.find('h4'),
+            element.find(class_=lambda c: c and ('title' in c.lower() or 'name' in c.lower() or 'heading' in c.lower())),
+            element.find('a', href=lambda h: h and ('/watch/' in h or '/watches/' in h)),
+            element.find('span', class_=lambda c: c and ('name' in c.lower() or 'title' in c.lower())),
         ]
         
         for title_elem in title_selectors:
@@ -239,6 +254,11 @@ def parse_single_watch(element) -> Optional[Dict]:
             # Try to get title from link text
             if element.name == 'a':
                 title = element.get_text(strip=True)
+            # Try alt text from image
+            elif not title:
+                img = element.find('img')
+                if img and img.get('alt'):
+                    title = img.get('alt').strip()
         
         # Get price
         price = None

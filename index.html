@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Send a message to Adam</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #e0e0e0;
+      padding: 1rem;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 1.25rem;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    h1 {
+      margin: 0 0 0.25rem;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    p.subtitle {
+      margin: 0 0 2rem;
+      font-size: 0.95rem;
+      color: #9ca3af;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #d1d5db;
+      margin-bottom: 0.4rem;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.07);
+      color: #f3f4f6;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+    }
+
+    .field {
+      margin-bottom: 1.25rem;
+    }
+
+    .details {
+      display: block;
+      font-size: 0.78rem;
+      color: #6b7280;
+      margin-top: 0.3rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.8rem;
+      border: none;
+      border-radius: 0.6rem;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 0.5rem;
+    }
+
+    button:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .notification {
+      margin-top: 1.25rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.6rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .notification.success {
+      display: block;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+
+    .notification.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>📨 Send a message to Adam</h1>
+    <p class="subtitle">Your message will be delivered as a push notification.</p>
+
+    <div class="field">
+      <label for="message">Message</label>
+      <textarea id="message" placeholder="Type your message here…"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="topic">ntfy.sh topic</label>
+      <input type="text" id="topic" value="adam-notify" />
+      <span class="details">Messages are sent to https://ntfy.sh/&lt;topic&gt;</span>
+    </div>
+
+    <button id="sendBtn" onclick="sendMessage()">Send to Adam</button>
+
+    <div id="notification" class="notification"></div>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const messageEl = document.getElementById('message');
+      const topicEl = document.getElementById('topic');
+      const btn = document.getElementById('sendBtn');
+      const notif = document.getElementById('notification');
+
+      const message = messageEl.value.trim();
+      const topic = topicEl.value.trim();
+
+      notif.className = 'notification';
+      notif.textContent = '';
+
+      if (!message) {
+        notif.className = 'notification error';
+        notif.textContent = '⚠️ Please enter a message before sending.';
+        return;
+      }
+
+      if (!topic) {
+        notif.className = 'notification error';
+        notif.textContent = '⚠️ Please enter a topic name.';
+        return;
+      }
+
+      if (!/^[A-Za-z0-9_-]+$/.test(topic)) {
+        notif.className = 'notification error';
+        notif.textContent = '⚠️ Topic may only contain letters, numbers, hyphens, and underscores.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      try {
+        const url = 'https://ntfy.sh/' + encodeURIComponent(topic);
+        const response = await fetch(url, {
+          method: 'POST',
+          body: message,
+        });
+
+        if (response.ok) {
+          notif.className = 'notification success';
+          notif.textContent = '✅ Message sent successfully!';
+          messageEl.value = '';
+        } else {
+          notif.className = 'notification error';
+          notif.textContent = '❌ Failed to send: ' + response.status + ' ' + response.statusText;
+        }
+      } catch (err) {
+        notif.className = 'notification error';
+        notif.textContent = '❌ Network error: ' + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send to Adam';
+      }
+    }
+
+    document.getElementById('message').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>

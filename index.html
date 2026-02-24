@@ -147,12 +147,6 @@
       <textarea id="message" placeholder="Type your message here…"></textarea>
     </div>
 
-    <div class="field">
-      <label for="topic">ntfy.sh topic</label>
-      <input type="text" id="topic" value="adam-notify" />
-      <span class="details">Messages are sent to https://ntfy.sh/&lt;topic&gt;</span>
-    </div>
-
     <button id="sendBtn" onclick="sendMessage()">Send to Adam</button>
 
     <div id="notification" class="notification"></div>
@@ -161,12 +155,11 @@
   <script>
     async function sendMessage() {
       const messageEl = document.getElementById('message');
-      const topicEl = document.getElementById('topic');
       const btn = document.getElementById('sendBtn');
       const notif = document.getElementById('notification');
 
       const message = messageEl.value.trim();
-      const topic = topicEl.value.trim();
+      const topic = 'adam-notify';
 
       notif.className = 'notification';
       notif.textContent = '';
@@ -174,18 +167,6 @@
       if (!message) {
         notif.className = 'notification error';
         notif.textContent = '⚠️ Please enter a message before sending.';
-        return;
-      }
-
-      if (!topic) {
-        notif.className = 'notification error';
-        notif.textContent = '⚠️ Please enter a topic name.';
-        return;
-      }
-
-      if (!/^[A-Za-z0-9_-]+$/.test(topic)) {
-        notif.className = 'notification error';
-        notif.textContent = '⚠️ Topic may only contain letters, numbers, hyphens, and underscores.';
         return;
       }
 
